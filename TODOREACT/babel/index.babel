@@ -1,0 +1,276 @@
+/*
+React is a javascript Library (NOT a framework!) built by the folks at Facebook and it's used to build user interfaces with (relative) ease! To quote their site, "Lots of people use React as the V in MVC"
+
+This pen is a bare-bones example of how to build a React component, along with some other fancy-pants, new-wave, hypenated-phrase, front-end technologies. Basically http://html9responsiveboilerstrapjs.com/.
+
+JSX/ES2015 will be used instead of plain old Javascript; then I'm using Babel to transpile that code into vanilla JS. To draw a comparison, JSX is to Javascript as SCSS/Sass/Less is to CSS; and Babel would be like Compass (or libsass if you don't feel like waiting for like ten days every time you want to run your build)
+
+React doesn't actually *require* that you write JSX code, but JSX is just much simpler to write, especially once you get over that knee-jerk "oh god I'm writing HTML in my Javascript what am I doing?" reaction. Also we get "arrow functions" which save a LOT of headaches related to using "this".
+
+Instead of having a stylesheet I'm going to use Radium to turn some CSS-like Javascript Objects into inline styles. I understand that the very idea of inline styles is pretty gross, but if you think about *why* they're bad you can see that in this case it's not so bad. Remember you're still getting all the benefits of cascading css, plus the optimization benefits of inline styles! Just think of it like CriticalCSS on all your stuff, all the time.
+*/
+
+/*
+Putting '@Radium' before the class definition to "decorate" my class. If this weren't CodePen and I had my source split into multiple files, I could also decorate the component with Radium by passing it into Radium on its way into being exported like so:
+
+var Radium = require('Radium');
+class SomeComponent extends React.Component { blah blah blah code here }
+export default Radium(SomeComponent);
+*/
+@Radium
+
+/*
+I define a component by creating a class that extends React.Component and giving it a render() function that returns a *single* element. That element can contain children of course; I just mean that the returned JSX must have a root element. 
+*/
+class Header extends React.Component{
+  render(){
+    /*
+    This object defines the styles for this component. Technically I could have put this pretty much anywhere, but I'm putting it in the component because I want to encapsulate the styles, template, and logic inside the component. 
+    */
+    var headerStyles = {
+      base: {
+          h1: {
+            margin: '0 0 0.667em 0'
+          }
+      }
+    };
+    
+    /*
+    Yeah, super weird. Just go with it. Remember that this isn't really a DOM element; Babel is going to parse this and turn it into nice, normal Javascript that creates a component object and returns it. This means when you're manipulating data and re-rendering your components you're not actually doing DOM manipulation, which keeps things nice and fast. The DOM doesn't ever get touched unless something actually changes!
+    */
+    return (
+      /* className not class! Remember these are NOT HTML Elements! */
+      <div className="header">
+        {/* 
+        This is how we get the styles from that headerStyle variable above. Note the lack of "'s around that attribute!
+        
+        Also if you want to put a comment inside JSX, make sure you wrap it in some curly brackets! I had to learn that to write this comment!
+        */}
+        <h1 style={headerStyles.base.h1}>React To-Do List</h1>
+      </div>
+    );
+  }
+}
+
+@Radium
+class App extends React.Component{
+  constructor(props, context){
+    super(props, context);
+    /*
+    In the Component's constructor function we initialize this.state by simply setting it. If you already know a bit of React you might be looking for a call to setInitialState(), but since we're creating the classes ourselves instead of using React.createClass() that won't do anything.
+    */
+    this.state = {tasks: []};
+  }
+  /*
+  componentWillMount() is one of React's "Lifecycle Methods". This one is called right before the component is added, and you can basically think of it as the "initialize" function.
+  */
+  componentWillMount = () => {
+    /*
+    I'm just going to use LocalStorage to save my data. Remember that React is NOT a Framework, it's just a View library. There's nothing to help manage your data; just bring whatever library you like.
+    */
+    var savedData = JSON.parse(localStorage.getItem('REACT_JS_TODO_LIST_TASKS'));
+    
+    if(savedData){
+      this.setState({'tasks': savedData});
+    } else {
+      this.setState({'tasks': [
+        { id: 1, text: 'Learn React.js', completed: false }
+      ]});      
+    }
+  };
+  /*
+  Arrow Functions, check 'em. Instead of:  
+    functon addTask(task){
+      // do stuff with this. oh wait, what is "this"?
+      // window? myself? this = self? should I have instantiated this?
+      // oh god I hate Javascript.
+    }  
+    
+    // No problem, I'll just use bind. Right? Or call? this.prototype.apply.call.bind(function(callback), this) ?
+    addTask = addTask.bind(this);
+  
+  I just use an arrow function, write less code, and "this" makes actual sense.
+  */
+  addTask = (task) => {
+    this.setState({'tasks': this.state.tasks.concat([task]) });
+    this.saveTasks();
+  };  
+  /*
+  I am *positive* this is bad React practice. This is like manipulating the DOM in an Angular controller.
+  */
+  updateTask = (task) => {
+    this.setState({'tasks': this.state.tasks});   
+    this.saveTasks();
+  };
+  saveTasks = () => {
+    localStorage.setItem('REACT_JS_TODO_LIST_TASKS', JSON.stringify(this.state.tasks));
+  };
+  
+  /*
+  JSX is weird! It looks like I'm returning bare HTML that got stuck in the middle of my Javascript! Babel is going to parse this code and turn it into native JS that is crazy verbose
+  */
+  render(){
+    return (
+      <div className="app">
+        {/* 
+        Remember, these tags are NOT tags! They're React Components defined below. You can also see on TodoList and TodoForm I'm setting some properties of the components. What you *don't* see is any kind of crazy scope-binding with @, &, or = to indicate how I want my data to flow. It's *ALWAYS* one-way, and so it just works and makes sense.
+        */}
+        <Header />
+        <TodoList tasks={this.state.tasks} onUpdateTask={this.updateTask} />
+        <TodoForm onSubmitForm={this.addTask} />
+      </div>
+    )
+  }
+}
+
+@Radium
+class TodoList extends React.Component{
+  /*
+  A weird thing about the JSX syntax compared to most templates you've probably worked with is that you can't stick repeaters and conditionals in your markup. Instead, create a "todoItems" variable by mapping the data to a function that returns some JSX...
+  */
+  render(){
+    /*
+    I set each TodoItem's props.onUpdate to this.props.onUpdateTask, which was set in the App component's JSX.
+    */
+    var todoItems = this.props.tasks.map((task) => {
+      return (
+        <TodoItem key={task.id} task={task} onUpdate={this.props.onUpdateTask}>
+          {task.text}
+        </TodoItem>
+      )
+    });
+    
+    {/* ...And then I just put that array of "elements" in my JSX */}
+    return (
+      <div className="todoList">
+       {todoItems}
+      </div>
+    );
+  }
+}
+
+@Radium
+class TodoItem extends React.Component{
+  /* 
+  This gets called when the checkbox in the item changes, which in turn calls the method passed in by setting the onUpdate property.
+  */
+  handleChange = (e) => {
+    var task = this.props.task;
+    task.completed = e.target.checked;
+    this.props.onUpdate(task);
+  };
+  
+  render(){
+    var itemStyles = {
+      base: {
+        padding: '1em 0',
+        borderTop: '1px solid #ccc'
+      },
+      checkbox: {
+        base: {
+          display: 'none'
+        }
+      },
+      checkMark: {
+        base: {
+          color: 'green'
+        }
+      },
+      label: {
+        base: {
+          paddingLeft: '1em'
+        },
+        completed: {
+          color: '#ccc',
+          textDecoration: 'line-through'
+        }
+      }
+    };
+    
+    var checkMark = null;
+    if(this.props.task.completed){
+      checkMark = (<span style={itemStyles.checkMark.base}>✔</span>);
+    }
+    
+    return (
+      <div className="todoItem" style={itemStyles.base}>
+        <input type="checkbox"
+          id={this.props.task.id}
+          checked={this.props.task.completed}
+          onChange={this.handleChange}
+          style={itemStyles.checkbox.base}
+        />
+        { checkMark }
+        
+        { /*
+        On the style attribute, I'm adding an array of styles. First the base styles for itemStyles.label, but then I'm also going to add itemStyles.label.completed IF this.props.task.completed is true.
+        */ }
+        <label 
+          htmlFor={this.props.task.id} 
+          style={[
+            itemStyles.label.base,
+            this.props.task.completed && itemStyles.label.completed
+          ]}>
+            {this.props.children}
+        </label>
+      </div>
+    );
+  }
+}
+
+@Radium
+class TodoForm extends React.Component{
+  constructor(props){
+    super(props);
+    this.state = {text: ''};
+  }
+  handleSubmit = (e) => {
+    e.preventDefault();
+    var task = {
+      id: Date.now(),
+      text: this.state.text, 
+      completed: false
+    };
+    this.props.onSubmitForm(task);
+    this.setState({'text': ''});
+  };
+  handleTextChange = (e) => {
+    this.setState({'text': e.target.value});
+  };
+  render(){
+    var formStyles = {
+      base: {},
+      input: {
+        base: {
+          width: '90%'
+        }
+      },
+      submit: {
+        base: {
+          width: '8%'
+        }
+      }
+    };
+    
+    return (
+      <form className="todoForm" onSubmit={this.handleSubmit} style={formStyles.base}>
+        <input 
+          type="text" 
+          placeholder="Enter a task…"
+          value={this.state.text}
+          onChange={this.handleTextChange}
+          style={formStyles.input.base}
+        />
+        <input style={formStyles.submit.base} type="submit" value="Add" />
+      </form>
+    );
+  }
+}
+
+/*
+Here's where I actually put the app on the page. Kinda boring really.
+*/
+React.render(
+  <App />, 
+  document.getElementById('app')
+);
