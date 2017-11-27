@@ -7,7 +7,7 @@ body, html {
 body {
   background-color: #99a;
   background-image: -webkit-linear-gradient(#bbc, #99a);
-  background-image: linear-gradient(#bbc, #99a);
+  background-image: linear-gradient(#2626ad, #07635a);
   background-repeat: no-repeat;
   margin: 20px;
 }
